@@ -1,6 +1,6 @@
 // Singleton backend service — all communication over a single WebSocket.
 
-const DEV_HOST = "192.168.11.26"
+const DEV_HOST = "spectry.local"
 
 // ── Types ────────────────────────────────────────────────────────
 
