@@ -23,6 +23,7 @@ const CommandManager::CommandEntry CommandManager::commands_[] = {
     { "wifiScan",     &CommandManager::Cmd_WifiScan,     false },
     { "getLogs",      &CommandManager::Cmd_GetLogs,      false },
     { "spectrum",     &CommandManager::Cmd_Spectrum,     false },
+    { "partitions",   &CommandManager::Cmd_Partitions,   false },
     { nullptr, nullptr, false },
 };
 
@@ -225,4 +226,29 @@ void CommandManager::Cmd_Spectrum(const char* json, JsonWriter& resp)
     resp.field("f8",    static_cast<uint32_t>(r.f8));
     resp.field("clear", static_cast<uint32_t>(r.clear));
     resp.field("nir",   static_cast<uint32_t>(r.nir));
+}
+
+void CommandManager::Cmd_Partitions(const char* json, JsonWriter& resp)
+{
+    auto& um = serviceProvider_.getUpdateManager();
+
+    UpdateManager::PartitionInfo infos[12];
+    int n = um.GetPartitions(infos, 12);
+
+    resp.fieldArray("partitions");
+    for (int i = 0; i < n; i++)
+    {
+        resp.beginObject();
+        resp.field("label",      infos[i].label);
+        resp.field("type",       infos[i].type);
+        resp.field("subtype",    infos[i].subtype);
+        resp.field("offset",     infos[i].offset);
+        resp.field("size",       infos[i].size);
+        resp.field("running",    infos[i].running);
+        resp.field("nextOta",    infos[i].nextOta);
+        resp.field("uploadable", infos[i].uploadable);
+        resp.field("version",    infos[i].version);
+        resp.endObject();
+    }
+    resp.endArray();
 }

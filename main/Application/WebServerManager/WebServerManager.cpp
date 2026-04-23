@@ -7,6 +7,7 @@
 #include <esp_log.h>
 #include <esp_vfs_fat.h>
 #include <esp_system.h>
+#include <esp_partition.h>
 
 static constexpr const char* TAG = "WebServerManager";
 static constexpr const char* BASE_PATH = "/www";
@@ -140,6 +141,18 @@ void WebServerManager::RegisterRoutes()
     };
     httpd_register_uri_handler(server_, &upload_www_opts);
 
+    // Partition download: GET /api/download?partition=<label>
+    const httpd_uri_t download = {
+        .uri = "/api/download",
+        .method = HTTP_GET,
+        .handler = HandleDownloadPartition,
+        .user_ctx = this,
+        .is_websocket = false,
+        .handle_ws_control_frames = false,
+        .supported_subprotocol = nullptr,
+    };
+    httpd_register_uri_handler(server_, &download);
+
     wsHandler_.RegisterRoute(server_);
     staticFileHandler_.RegisterRoute(server_, BASE_PATH);
 }
@@ -156,6 +169,62 @@ esp_err_t WebServerManager::HandleCorsPreflight(httpd_req_t* req)
     SetCorsHeaders(req);
     httpd_resp_set_status(req, "204 No Content");
     httpd_resp_send(req, nullptr, 0);
+    return ESP_OK;
+}
+
+esp_err_t WebServerManager::HandleDownloadPartition(httpd_req_t* req)
+{
+    SetCorsHeaders(req);
+
+    char query[96] = {};
+    if (httpd_req_get_url_query_str(req, query, sizeof(query)) != ESP_OK)
+    {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Missing ?partition=");
+        return ESP_FAIL;
+    }
+
+    char label[17] = {};
+    if (httpd_query_key_value(query, "partition", label, sizeof(label)) != ESP_OK)
+    {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Missing 'partition' param");
+        return ESP_FAIL;
+    }
+
+    const esp_partition_t* p = esp_partition_find_first(
+        ESP_PARTITION_TYPE_ANY, ESP_PARTITION_SUBTYPE_ANY, label);
+    if (!p)
+    {
+        httpd_resp_send_err(req, HTTPD_404_NOT_FOUND, "Unknown partition");
+        return ESP_FAIL;
+    }
+
+    ESP_LOGI(TAG, "Download partition '%s' (%lu bytes)", label, (unsigned long)p->size);
+
+    httpd_resp_set_type(req, "application/octet-stream");
+
+    char disp[80];
+    snprintf(disp, sizeof(disp), "attachment; filename=\"%s.bin\"", label);
+    httpd_resp_set_hdr(req, "Content-Disposition", disp);
+
+    constexpr size_t CHUNK = 4096;
+    uint8_t buf[CHUNK];
+    size_t offset = 0;
+    while (offset < p->size)
+    {
+        size_t n = (p->size - offset < CHUNK) ? (p->size - offset) : CHUNK;
+        if (esp_partition_read(p, offset, buf, n) != ESP_OK)
+        {
+            ESP_LOGE(TAG, "esp_partition_read failed at offset %lu", (unsigned long)offset);
+            return ESP_FAIL;
+        }
+        if (httpd_resp_send_chunk(req, reinterpret_cast<const char*>(buf), n) != ESP_OK)
+        {
+            ESP_LOGW(TAG, "Client disconnected during download");
+            return ESP_FAIL;
+        }
+        offset += n;
+    }
+    httpd_resp_send_chunk(req, nullptr, 0);
     return ESP_OK;
 }
 

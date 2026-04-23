@@ -1,6 +1,7 @@
 #include "UpdateManager.h"
 #include "esp_log.h"
 #include "esp_system.h"
+#include <cstring>
 
 UpdateManager::UpdateManager(ServiceProvider& serviceProvider)
     : serviceProvider_(serviceProvider)
@@ -173,4 +174,74 @@ const char* UpdateManager::FinalizeWwwUpdate()
     wwwActive_ = false;
     ESP_LOGI(TAG, "WWW update finalized (%lu bytes written)", (unsigned long)wwwOffset_);
     return nullptr; // success
+}
+
+// ──────────────────────────────────────────────────────────────
+// Partition enumeration
+// ──────────────────────────────────────────────────────────────
+
+int UpdateManager::GetPartitions(PartitionInfo* out, int maxCount) const
+{
+    const esp_partition_t* running = esp_ota_get_running_partition();
+    const esp_partition_t* next    = esp_ota_get_next_update_partition(nullptr);
+    const esp_partition_t* wwwP    = esp_partition_find_first(
+        ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_DATA_FAT, "www");
+
+    int count = 0;
+    esp_partition_iterator_t it = esp_partition_find(
+        ESP_PARTITION_TYPE_ANY, ESP_PARTITION_SUBTYPE_ANY, nullptr);
+
+    while (it != nullptr && count < maxCount)
+    {
+        const esp_partition_t* p = esp_partition_get(it);
+        PartitionInfo& info = out[count++];
+
+        strncpy(info.label, p->label, sizeof(info.label) - 1);
+        info.label[sizeof(info.label) - 1] = '\0';
+
+        if (p->type == ESP_PARTITION_TYPE_APP)
+            strcpy(info.type, "app");
+        else
+            strcpy(info.type, "data");
+
+        switch (p->subtype)
+        {
+            case ESP_PARTITION_SUBTYPE_DATA_NVS:    strcpy(info.subtype, "nvs"); break;
+            case ESP_PARTITION_SUBTYPE_DATA_OTA:    strcpy(info.subtype, "ota"); break;
+            case ESP_PARTITION_SUBTYPE_DATA_PHY:    strcpy(info.subtype, "phy"); break;
+            case ESP_PARTITION_SUBTYPE_DATA_FAT:    strcpy(info.subtype, "fat"); break;
+            case ESP_PARTITION_SUBTYPE_APP_OTA_0:   strcpy(info.subtype, "ota_0"); break;
+            case ESP_PARTITION_SUBTYPE_APP_OTA_1:   strcpy(info.subtype, "ota_1"); break;
+            case ESP_PARTITION_SUBTYPE_APP_FACTORY: strcpy(info.subtype, "factory"); break;
+            default: snprintf(info.subtype, sizeof(info.subtype), "0x%02x", (int)p->subtype);
+        }
+
+        info.offset = p->address;
+        info.size   = p->size;
+        info.running = (running && p == running);
+        info.nextOta = (next && p == next);
+
+        // Uploadable: any non-running OTA app slot, or the www FAT partition.
+        info.uploadable =
+            (p->type == ESP_PARTITION_TYPE_APP && !info.running) ||
+            (wwwP && p == wwwP);
+
+        info.version[0] = '\0';
+        if (p->type == ESP_PARTITION_TYPE_APP)
+        {
+            esp_app_desc_t desc;
+            if (esp_ota_get_partition_description(p, &desc) == ESP_OK)
+            {
+                strncpy(info.version, desc.version, sizeof(info.version) - 1);
+                info.version[sizeof(info.version) - 1] = '\0';
+            }
+        }
+
+        it = esp_partition_next(it);
+    }
+
+    if (it != nullptr)
+        esp_partition_iterator_release(it);
+
+    return count;
 }

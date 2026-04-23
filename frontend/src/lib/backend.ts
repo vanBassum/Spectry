@@ -205,6 +205,15 @@ class BackendService {
     return this.send<SpectrumReading>("spectrum")
   }
 
+  async getPartitions(): Promise<PartitionsResponse> {
+    return this.send<PartitionsResponse>("partitions")
+  }
+
+  partitionDownloadUrl(label: string): string {
+    const host = import.meta.env.DEV ? `http://${DEV_HOST}` : ""
+    return `${host}/api/download?partition=${encodeURIComponent(label)}`
+  }
+
   async uploadFirmware(
     file: File,
     onProgress?: (percent: number) => void,
@@ -305,6 +314,22 @@ export interface WifiScanResponse {
 
 export interface LogsResponse {
   lines: string[]
+}
+
+export interface Partition {
+  label: string
+  type: string
+  subtype: string
+  offset: number
+  size: number
+  running: boolean
+  nextOta: boolean
+  uploadable: boolean
+  version: string
+}
+
+export interface PartitionsResponse {
+  partitions: Partition[]
 }
 
 export interface SpectrumReading {
