@@ -199,21 +199,30 @@ int UpdateManager::GetPartitions(PartitionInfo* out, int maxCount) const
         strncpy(info.label, p->label, sizeof(info.label) - 1);
         info.label[sizeof(info.label) - 1] = '\0';
 
+        // Subtype values collide across types (e.g. APP_FACTORY and DATA_OTA are both 0x00),
+        // so we branch by type first.
         if (p->type == ESP_PARTITION_TYPE_APP)
-            strcpy(info.type, "app");
-        else
-            strcpy(info.type, "data");
-
-        switch (p->subtype)
         {
-            case ESP_PARTITION_SUBTYPE_DATA_NVS:    strcpy(info.subtype, "nvs"); break;
-            case ESP_PARTITION_SUBTYPE_DATA_OTA:    strcpy(info.subtype, "ota"); break;
-            case ESP_PARTITION_SUBTYPE_DATA_PHY:    strcpy(info.subtype, "phy"); break;
-            case ESP_PARTITION_SUBTYPE_DATA_FAT:    strcpy(info.subtype, "fat"); break;
-            case ESP_PARTITION_SUBTYPE_APP_OTA_0:   strcpy(info.subtype, "ota_0"); break;
-            case ESP_PARTITION_SUBTYPE_APP_OTA_1:   strcpy(info.subtype, "ota_1"); break;
-            case ESP_PARTITION_SUBTYPE_APP_FACTORY: strcpy(info.subtype, "factory"); break;
-            default: snprintf(info.subtype, sizeof(info.subtype), "0x%02x", (int)p->subtype);
+            strcpy(info.type, "app");
+            switch (p->subtype)
+            {
+                case ESP_PARTITION_SUBTYPE_APP_FACTORY: strcpy(info.subtype, "factory"); break;
+                case ESP_PARTITION_SUBTYPE_APP_OTA_0:   strcpy(info.subtype, "ota_0"); break;
+                case ESP_PARTITION_SUBTYPE_APP_OTA_1:   strcpy(info.subtype, "ota_1"); break;
+                default: snprintf(info.subtype, sizeof(info.subtype), "0x%02x", (int)p->subtype);
+            }
+        }
+        else
+        {
+            strcpy(info.type, "data");
+            switch (p->subtype)
+            {
+                case ESP_PARTITION_SUBTYPE_DATA_OTA: strcpy(info.subtype, "ota"); break;
+                case ESP_PARTITION_SUBTYPE_DATA_PHY: strcpy(info.subtype, "phy"); break;
+                case ESP_PARTITION_SUBTYPE_DATA_NVS: strcpy(info.subtype, "nvs"); break;
+                case ESP_PARTITION_SUBTYPE_DATA_FAT: strcpy(info.subtype, "fat"); break;
+                default: snprintf(info.subtype, sizeof(info.subtype), "0x%02x", (int)p->subtype);
+            }
         }
 
         info.offset = p->address;

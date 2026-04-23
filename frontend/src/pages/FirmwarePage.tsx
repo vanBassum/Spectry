@@ -19,13 +19,15 @@ export default function FirmwarePage() {
   const release = useLatestRelease()
 
   const [partitions, setPartitions] = useState<Partition[] | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   const refresh = async () => {
     try {
       const r = await backend.getPartitions()
       setPartitions(r.partitions)
-    } catch {
-      /* ignore */
+      setLoadError(null)
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : "Failed to load partitions")
     }
   }
 
@@ -56,14 +58,22 @@ export default function FirmwarePage() {
           </p>
         </div>
 
-        {!partitions ? (
-          <p className="p-6 text-sm text-muted-foreground">Loading...</p>
-        ) : (
+        {partitions ? (
           <ul className="divide-y">
             {partitions.map((p) => (
               <PartitionRow key={p.label} partition={p} onAfterUpload={refresh} />
             ))}
           </ul>
+        ) : loadError ? (
+          <p className="p-6 text-sm text-red-500">
+            Failed to load partitions: {loadError}
+            <span className="mt-1 block text-xs text-muted-foreground">
+              If you just updated the UI but not the firmware, flash the new .bin — the{" "}
+              <code className="font-mono">partitions</code> command was added in the same release.
+            </span>
+          </p>
+        ) : (
+          <p className="p-6 text-sm text-muted-foreground">Loading...</p>
         )}
       </div>
     </div>
