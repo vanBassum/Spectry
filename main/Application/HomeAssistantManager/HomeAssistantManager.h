@@ -2,6 +2,7 @@
 
 #include "ServiceProvider.h"
 #include "InitState.h"
+#include "Timer.h"
 
 class HomeAssistantManager
 {
@@ -20,6 +21,8 @@ public:
 private:
     ServiceProvider &serviceProvider_;
     InitState initState_;
+    Timer spectrumTimer_;
 
     void PublishLedState();
+    void PublishSpectrum();
 };

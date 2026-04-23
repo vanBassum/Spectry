@@ -5,6 +5,7 @@
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "Mutex.h"
 #include <cstdint>
 
 // ──────────────────────────────────────────────────────────────
@@ -131,6 +132,8 @@ public:
     {
         if (!ready_) return false;
 
+        LOCK(mutex_);
+
         uint16_t low[6]  = {};
         uint16_t high[6] = {};
         if (!MeasureWithSmux(SmuxLow,  low))  return false;
@@ -254,4 +257,5 @@ private:
     i2c_master_bus_handle_t bus_ = nullptr;
     i2c_master_dev_handle_t dev_ = nullptr;
     bool ready_ = false;
+    Mutex mutex_;
 };
