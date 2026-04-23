@@ -2,6 +2,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar, type Page } from "@/components/AppSidebar"
 import { useRoute } from "@/hooks/use-route"
 import HomePage from "@/pages/HomePage"
+import SpectrumPage from "@/pages/SpectrumPage"
 import ConsolePage from "@/pages/ConsolePage"
 import SettingsPage from "@/pages/SettingsPage"
 import FirmwarePage from "@/pages/FirmwarePage"
@@ -10,6 +11,8 @@ function PageContent({ page }: { page: Page }) {
   switch (page) {
     case "home":
       return <HomePage />
+    case "spectrum":
+      return <SpectrumPage />
     case "console":
       return <ConsolePage />
     case "settings":
