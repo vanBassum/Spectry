@@ -1,12 +1,11 @@
 import type { SpectrumReading } from "@/lib/backend"
 import {
-  Area,
-  AreaChart,
   Bar,
-  BarChart,
   CartesianGrid,
   Cell,
-  Customized,
+  ComposedChart,
+  Line,
+  LineChart,
   XAxis,
   YAxis,
 } from "recharts"
@@ -41,45 +40,11 @@ function clampForLog(v: number, logScale: boolean) {
   return logScale ? Math.max(1, v) : v
 }
 
-// Peak-hold horizontal caps drawn above each bar via recharts' internal axis scales.
-function PeakMarkers(props: {
-  xAxisMap?: Record<string, { scale: (v: unknown) => number }>
-  yAxisMap?: Record<string, { scale: (v: number) => number }>
-  data: { name: string; peak: number; fill: string }[]
-}) {
-  const xAxis = props.xAxisMap && Object.values(props.xAxisMap)[0]
-  const yAxis = props.yAxisMap && Object.values(props.yAxisMap)[0]
-  if (!xAxis?.scale || !yAxis?.scale) return null
-
-  const bw = (xAxis.scale as unknown as { bandwidth?: () => number }).bandwidth?.() ?? 10
-
-  return (
-    <g>
-      {props.data.map((d) => {
-        if (d.peak <= 0) return null
-        const x = xAxis.scale(d.name) as number
-        if (Number.isNaN(x)) return null
-        const y = yAxis.scale(d.peak)
-        if (Number.isNaN(y)) return null
-        return (
-          <line
-            key={d.name}
-            x1={x + 2}
-            x2={x + bw - 2}
-            y1={y}
-            y2={y}
-            stroke={d.fill}
-            strokeWidth={2.5}
-            strokeLinecap="round"
-            opacity={0.9}
-          />
-        )
-      })}
-    </g>
-  )
-}
-
-// ── Bar chart: current spectrum + peak-hold markers ────────────
+// ── Bar chart: current spectrum + peak-hold caps ──────────────
+//
+// Peaks are drawn as a Line series with a custom dot renderer — recharts
+// positions each dot using the real y-scale, so this works for log & linear
+// automatically. The invisible connecting line is hidden with stroke="none".
 
 export function SpectrumBarChart({
   reading,
@@ -103,7 +68,7 @@ export function SpectrumBarChart({
 
   return (
     <ChartContainer config={chartConfig} className="aspect-[16/7] w-full">
-      <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} accessibilityLayer>
+      <ComposedChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} accessibilityLayer>
         <CartesianGrid vertical={false} strokeDasharray="3 3" />
         <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} />
         <YAxis
@@ -115,19 +80,48 @@ export function SpectrumBarChart({
           allowDataOverflow={false}
         />
         <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
-        <Bar dataKey="value" radius={[3, 3, 0, 0]}>
+        <Bar dataKey="value" radius={[3, 3, 0, 0]} isAnimationActive={false}>
           {data.map((d) => (
             <Cell key={d.name} fill={d.fill} />
           ))}
         </Bar>
-        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-        <Customized component={(inner: any) => <PeakMarkers data={data} {...inner} />} />
-      </BarChart>
+        <Line
+          dataKey="peak"
+          stroke="none"
+          isAnimationActive={false}
+          activeDot={false}
+          dot={(props) => {
+            // recharts Line dot renderer props: cx, cy, payload, index, key
+            const p = props as unknown as {
+              cx: number
+              cy: number
+              payload: { peak: number; fill: string; name: string }
+              index: number
+            }
+            if (!Number.isFinite(p.cx) || !Number.isFinite(p.cy)) {
+              return <g key={`peak-${p.index}`} />
+            }
+            const capW = 22
+            return (
+              <line
+                key={`peak-${p.index}`}
+                x1={p.cx - capW / 2}
+                x2={p.cx + capW / 2}
+                y1={p.cy}
+                y2={p.cy}
+                stroke={p.payload.fill}
+                strokeWidth={3}
+                strokeLinecap="round"
+              />
+            )
+          }}
+        />
+      </ComposedChart>
     </ChartContainer>
   )
 }
 
-// ── Area chart: history over time ──────────────────────────────
+// ── Line chart: history over time (strokes only, no fill) ─────
 
 type TimeSlice = { t: number } & Partial<Record<ChannelKey, number>>
 
@@ -147,15 +141,7 @@ export function SpectrumTimeSeriesChart({
 
   return (
     <ChartContainer config={chartConfig} className="aspect-[16/7] w-full">
-      <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} accessibilityLayer>
-        <defs>
-          {channels.map((c) => (
-            <linearGradient key={c.key} id={`grad-${c.key}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%"  stopColor={`var(--color-${c.key})`} stopOpacity={0.35} />
-              <stop offset="95%" stopColor={`var(--color-${c.key})`} stopOpacity={0.02} />
-            </linearGradient>
-          ))}
-        </defs>
+      <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} accessibilityLayer>
         <CartesianGrid vertical={false} strokeDasharray="3 3" />
         <XAxis
           dataKey="t"
@@ -177,17 +163,17 @@ export function SpectrumTimeSeriesChart({
           content={<ChartTooltipContent labelFormatter={(v) => `${v}s`} />}
         />
         {channels.map((c) => (
-          <Area
+          <Line
             key={c.key}
             type="monotone"
             dataKey={c.key}
             stroke={`var(--color-${c.key})`}
             strokeWidth={1.5}
-            fill={`url(#grad-${c.key})`}
+            dot={false}
             isAnimationActive={false}
           />
         ))}
-      </AreaChart>
+      </LineChart>
     </ChartContainer>
   )
 }

@@ -44,13 +44,27 @@ export default function SpectrumPage() {
     <div className="mx-auto max-w-3xl space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Spectrum</h1>
-        <Button
-          variant={logScale ? "default" : "outline"}
-          size="sm"
-          onClick={() => setLogScale((v) => !v)}
-        >
-          {logScale ? "Log scale" : "Linear scale"}
-        </Button>
+        <div className="inline-flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">Y-axis</span>
+          <div className="inline-flex rounded-lg border bg-muted/30 p-0.5">
+            <Button
+              variant={!logScale ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => setLogScale(false)}
+              aria-pressed={!logScale}
+            >
+              Linear
+            </Button>
+            <Button
+              variant={logScale ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => setLogScale(true)}
+              aria-pressed={logScale}
+            >
+              Log
+            </Button>
+          </div>
+        </div>
       </div>
 
       <div className="rounded-xl border bg-card p-6 text-card-foreground shadow-sm">
