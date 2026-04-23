@@ -87,7 +87,7 @@ export function SpectrumBarChart({
   })
 
   const rawMax = Math.max(1, ...data.map((d) => Math.max(d.value, d.peak)))
-  const ticks = powerOfTenTicks(rawMax, logScale)
+  const logTicks = logScale ? powerOfTenTicks(rawMax, true) : undefined
 
   return (
     <ChartContainer config={chartConfig} className="aspect-[16/7] w-full">
@@ -99,8 +99,8 @@ export function SpectrumBarChart({
           axisLine={false}
           width={40}
           scale={logScale ? "log" : "linear"}
-          domain={[ticks[0], ticks[ticks.length - 1]]}
-          ticks={ticks}
+          domain={logScale ? [logTicks![0], logTicks![logTicks!.length - 1]] : [0, "auto"]}
+          ticks={logTicks}
           tickFormatter={formatTick}
           allowDataOverflow={false}
         />
@@ -168,7 +168,7 @@ export function SpectrumTimeSeriesChart({
   for (const r of history) for (const c of channels) {
     if (r[c.key] > rawMax) rawMax = r[c.key]
   }
-  const ticks = powerOfTenTicks(rawMax, logScale)
+  const logTicks = logScale ? powerOfTenTicks(rawMax, true) : undefined
 
   return (
     <ChartContainer config={chartConfig} className="aspect-[16/7] w-full">
@@ -186,8 +186,8 @@ export function SpectrumTimeSeriesChart({
           axisLine={false}
           width={40}
           scale={logScale ? "log" : "linear"}
-          domain={[ticks[0], ticks[ticks.length - 1]]}
-          ticks={ticks}
+          domain={logScale ? [logTicks![0], logTicks![logTicks!.length - 1]] : [0, "auto"]}
+          ticks={logTicks}
           tickFormatter={formatTick}
           allowDataOverflow={false}
         />
