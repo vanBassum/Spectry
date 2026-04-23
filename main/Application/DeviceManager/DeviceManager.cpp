@@ -17,6 +17,10 @@ void DeviceManager::Init()
 
     led_.Init();
 
+    if (!as7341_.Init()) {
+        ESP_LOGE(TAG, "AS7341 init failed — spectral readings unavailable");
+    }
+
     init.SetReady();
     ESP_LOGI(TAG, "Initialized");
 }

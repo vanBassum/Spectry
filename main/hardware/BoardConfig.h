@@ -13,9 +13,8 @@ namespace BoardConfig
     static constexpr int LED_PIN = 2;
     static constexpr bool LED_ACTIVE_HIGH = true;
 
-    // Add project-specific pin definitions below.
-    // Examples:
-    //   static constexpr int MODBUS_TX_PIN = 17;
-    //   static constexpr int MODBUS_RX_PIN = 16;
-    //   static constexpr int SPI_MOSI_PIN  = 13;
+    // I2C bus (shared by AS7341 spectral sensor and OLED display).
+    // AS7341 breakout has onboard pullups; OLED modules typically do too.
+    static constexpr int I2C_SDA_PIN = 8;
+    static constexpr int I2C_SCL_PIN = 9;
 }

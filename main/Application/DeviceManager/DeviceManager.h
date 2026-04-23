@@ -3,6 +3,7 @@
 #include "ServiceProvider.h"
 #include "InitState.h"
 #include "Led.h"
+#include "As7341.h"
 
 class DeviceManager
 {
@@ -19,9 +20,7 @@ public:
     void Init();
 
     Led &getLed() { return led_; }
-
-    // Projects add more hardware accessors here.
-    // Example: DPS5020& getDPS5020() { return dps5020_; }
+    As7341 &getAs7341() { return as7341_; }
 
 private:
     ServiceProvider &serviceProvider_;
@@ -29,4 +28,5 @@ private:
 
     // Hardware instances
     Led led_;
+    As7341 as7341_;
 };
