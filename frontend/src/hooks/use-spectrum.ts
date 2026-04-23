@@ -3,9 +3,10 @@ import { backend, type SpectrumReading } from "@/lib/backend"
 import { useConnectionStatus } from "@/hooks/use-connection-status"
 
 const POLL_INTERVAL_MS = 1000
+const MAX_HISTORY = 60
 
 export function useSpectrum() {
-  const [reading, setReading] = useState<SpectrumReading | null>(null)
+  const [history, setHistory] = useState<SpectrumReading[]>([])
   const connection = useConnectionStatus()
 
   useEffect(() => {
@@ -14,7 +15,13 @@ export function useSpectrum() {
     let cancelled = false
     const poll = () => {
       backend.getSpectrum()
-        .then((r) => { if (!cancelled) setReading(r) })
+        .then((r) => {
+          if (cancelled || !r.ok) return
+          setHistory((prev) => {
+            const next = [...prev, r]
+            return next.length > MAX_HISTORY ? next.slice(-MAX_HISTORY) : next
+          })
+        })
         .catch(() => {})
     }
 
@@ -26,5 +33,6 @@ export function useSpectrum() {
     }
   }, [connection])
 
-  return reading
+  const latest = history.length > 0 ? history[history.length - 1] : null
+  return { latest, history }
 }
