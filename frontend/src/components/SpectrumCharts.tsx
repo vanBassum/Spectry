@@ -40,6 +40,26 @@ function clampForLog(v: number, logScale: boolean) {
   return logScale ? Math.max(1, v) : v
 }
 
+// Next power of 10 at or above v. topPowerOfTen(999) = 1000; topPowerOfTen(1001) = 10000.
+function topPowerOfTen(v: number): number {
+  if (v <= 1) return 1
+  return Math.pow(10, Math.max(1, Math.ceil(Math.log10(v))))
+}
+
+// Ticks at strict powers of 10. Linear includes 0; log starts at 1.
+function powerOfTenTicks(max: number, logScale: boolean): number[] {
+  const topExp = Math.log10(topPowerOfTen(max))
+  const ticks: number[] = logScale ? [] : [0]
+  for (let e = 0; e <= topExp; e++) ticks.push(Math.pow(10, e))
+  return ticks
+}
+
+function formatTick(v: number): string {
+  if (v >= 1_000_000) return `${v / 1_000_000}M`
+  if (v >= 1_000)     return `${v / 1_000}k`
+  return `${v}`
+}
+
 // ── Bar chart: current spectrum + peak-hold caps ──────────────
 //
 // Peaks are drawn as a Line series with a custom dot renderer — recharts
@@ -66,6 +86,9 @@ export function SpectrumBarChart({
     }
   })
 
+  const rawMax = Math.max(1, ...data.map((d) => Math.max(d.value, d.peak)))
+  const ticks = powerOfTenTicks(rawMax, logScale)
+
   return (
     <ChartContainer config={chartConfig} className="aspect-[16/7] w-full">
       <ComposedChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} accessibilityLayer>
@@ -76,7 +99,9 @@ export function SpectrumBarChart({
           axisLine={false}
           width={40}
           scale={logScale ? "log" : "linear"}
-          domain={logScale ? [1, "auto"] : [0, "auto"]}
+          domain={[ticks[0], ticks[ticks.length - 1]]}
+          ticks={ticks}
+          tickFormatter={formatTick}
           allowDataOverflow={false}
         />
         <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
@@ -139,6 +164,12 @@ export function SpectrumTimeSeriesChart({
     return slice
   })
 
+  let rawMax = 1
+  for (const r of history) for (const c of channels) {
+    if (r[c.key] > rawMax) rawMax = r[c.key]
+  }
+  const ticks = powerOfTenTicks(rawMax, logScale)
+
   return (
     <ChartContainer config={chartConfig} className="aspect-[16/7] w-full">
       <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} accessibilityLayer>
@@ -155,7 +186,9 @@ export function SpectrumTimeSeriesChart({
           axisLine={false}
           width={40}
           scale={logScale ? "log" : "linear"}
-          domain={logScale ? [1, "auto"] : [0, "auto"]}
+          domain={[ticks[0], ticks[ticks.length - 1]]}
+          ticks={ticks}
+          tickFormatter={formatTick}
           allowDataOverflow={false}
         />
         <ChartTooltip
