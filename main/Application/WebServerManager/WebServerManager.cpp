@@ -287,10 +287,7 @@ esp_err_t WebServerManager::HandleUploadApp(httpd_req_t* req)
     httpd_resp_set_type(req, "application/json");
     httpd_resp_send(req, resp, len);
 
-    ESP_LOGI(TAG, "App upload complete (%d bytes), rebooting...", total);
-    vTaskDelay(pdMS_TO_TICKS(1000));
-    esp_restart();
-
+    ESP_LOGI(TAG, "App upload complete (%d bytes) — restart required to apply", total);
     return ESP_OK;
 }
 
@@ -343,9 +340,6 @@ esp_err_t WebServerManager::HandleUploadWww(httpd_req_t* req)
     httpd_resp_set_type(req, "application/json");
     httpd_resp_send(req, resp, len);
 
-    ESP_LOGI(TAG, "WWW upload complete (%d bytes), rebooting...", total);
-    vTaskDelay(pdMS_TO_TICKS(1000));
-    esp_restart();
-
+    ESP_LOGI(TAG, "WWW upload complete (%d bytes) — restart required to apply", total);
     return ESP_OK;
 }

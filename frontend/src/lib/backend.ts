@@ -209,6 +209,10 @@ class BackendService {
     return this.send<PartitionsResponse>("partitions")
   }
 
+  async reboot(): Promise<{ ok: boolean }> {
+    return this.send("reboot")
+  }
+
   partitionDownloadUrl(label: string): string {
     const host = import.meta.env.DEV ? `http://${DEV_HOST}` : ""
     return `${host}/api/download?partition=${encodeURIComponent(label)}`

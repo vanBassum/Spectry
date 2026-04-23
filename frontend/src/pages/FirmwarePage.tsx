@@ -3,6 +3,7 @@ import {
   ArrowUpCircleIcon,
   DownloadIcon,
   ExternalLinkIcon,
+  RefreshCwIcon,
   UploadIcon,
 } from "lucide-react"
 
@@ -20,6 +21,7 @@ export default function FirmwarePage() {
 
   const [partitions, setPartitions] = useState<Partition[] | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [restartPending, setRestartPending] = useState(false)
 
   const refresh = async () => {
     try {
@@ -49,6 +51,12 @@ export default function FirmwarePage() {
         <UpdateAvailableCard current={info!.firmware} release={release} />
       )}
 
+      {restartPending && (
+        <RestartBanner
+          onRestarted={() => setRestartPending(false)}
+        />
+      )}
+
       <div className="rounded-xl border bg-card text-card-foreground shadow-sm">
         <div className="border-b p-4">
           <h2 className="text-lg font-semibold">Partitions</h2>
@@ -61,7 +69,14 @@ export default function FirmwarePage() {
         {partitions ? (
           <ul className="divide-y">
             {partitions.map((p) => (
-              <PartitionRow key={p.label} partition={p} onAfterUpload={refresh} />
+              <PartitionRow
+                key={p.label}
+                partition={p}
+                onAfterUpload={() => {
+                  setRestartPending(true)
+                  refresh()
+                }}
+              />
             ))}
           </ul>
         ) : loadError ? (
@@ -228,6 +243,61 @@ function Badge({
     >
       {children}
     </span>
+  )
+}
+
+function RestartBanner({ onRestarted }: { onRestarted: () => void }) {
+  const connection = useConnectionStatus()
+  const [status, setStatus] = useState<"idle" | "restarting" | "reconnecting">("idle")
+
+  // Once we've asked for a reboot and seen a disconnect, consider the reboot
+  // in progress; when the WS comes back, clear the banner.
+  useEffect(() => {
+    if (status === "restarting" && connection === "disconnected") {
+      setStatus("reconnecting")
+    } else if (status === "reconnecting" && connection === "connected") {
+      onRestarted()
+    }
+  }, [connection, status, onRestarted])
+
+  const onClick = async () => {
+    setStatus("restarting")
+    try {
+      await backend.reboot()
+    } catch {
+      // Ignore — the device may disconnect before sending a reply.
+    }
+  }
+
+  const busy = status !== "idle"
+
+  return (
+    <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 shadow-sm">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2">
+          <RefreshCwIcon
+            className={`size-5 text-amber-500 ${status === "reconnecting" ? "animate-spin" : ""}`}
+          />
+          <div>
+            <p className="text-sm font-medium">
+              {status === "reconnecting"
+                ? "Restarting — waiting for the device to come back..."
+                : status === "restarting"
+                  ? "Restart command sent..."
+                  : "Restart required to apply upload"}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              The new image is written but not yet active. Restart the device
+              to boot into it.
+            </p>
+          </div>
+        </div>
+        <Button variant="default" size="sm" onClick={onClick} disabled={busy}>
+          <RefreshCwIcon />
+          {busy ? "Restarting..." : "Restart now"}
+        </Button>
+      </div>
+    </div>
   )
 }
 
