@@ -201,6 +201,10 @@ class BackendService {
     return this.send<WifiScanResponse>("wifiScan")
   }
 
+  async getSpectrum(): Promise<SpectrumReading> {
+    return this.send<SpectrumReading>("spectrum")
+  }
+
   async uploadFirmware(
     file: File,
     onProgress?: (percent: number) => void,
@@ -301,5 +305,19 @@ export interface WifiScanResponse {
 
 export interface LogsResponse {
   lines: string[]
+}
+
+export interface SpectrumReading {
+  ok: boolean
+  f1: number
+  f2: number
+  f3: number
+  f4: number
+  f5: number
+  f6: number
+  f7: number
+  f8: number
+  clear: number
+  nir: number
 }
 

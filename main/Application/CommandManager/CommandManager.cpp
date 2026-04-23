@@ -2,6 +2,7 @@
 #include "ConsoleManager.h"
 #include "SettingsManager.h"
 #include "UpdateManager.h"
+#include "DeviceManager.h"
 #include "JsonWriter.h"
 #include "JsonHelpers.h"
 #include "esp_log.h"
@@ -21,6 +22,7 @@ const CommandManager::CommandEntry CommandManager::commands_[] = {
     { "reboot",       &CommandManager::Cmd_Reboot,       true  },
     { "wifiScan",     &CommandManager::Cmd_WifiScan,     false },
     { "getLogs",      &CommandManager::Cmd_GetLogs,      false },
+    { "spectrum",     &CommandManager::Cmd_Spectrum,     false },
     { nullptr, nullptr, false },
 };
 
@@ -202,4 +204,25 @@ void CommandManager::Cmd_WifiScan(const char* json, JsonWriter& resp)
 void CommandManager::Cmd_GetLogs(const char* json, JsonWriter& resp)
 {
     serviceProvider_.getConsoleManager().WriteHistory(resp);
+}
+
+void CommandManager::Cmd_Spectrum(const char* json, JsonWriter& resp)
+{
+    auto& sensor = serviceProvider_.getDeviceManager().getAs7341();
+    As7341::Reading r = {};
+    bool ok = sensor.ReadChannels(r);
+
+    resp.field("ok", ok);
+    if (!ok) return;
+
+    resp.field("f1",    static_cast<uint32_t>(r.f1));
+    resp.field("f2",    static_cast<uint32_t>(r.f2));
+    resp.field("f3",    static_cast<uint32_t>(r.f3));
+    resp.field("f4",    static_cast<uint32_t>(r.f4));
+    resp.field("f5",    static_cast<uint32_t>(r.f5));
+    resp.field("f6",    static_cast<uint32_t>(r.f6));
+    resp.field("f7",    static_cast<uint32_t>(r.f7));
+    resp.field("f8",    static_cast<uint32_t>(r.f8));
+    resp.field("clear", static_cast<uint32_t>(r.clear));
+    resp.field("nir",   static_cast<uint32_t>(r.nir));
 }
