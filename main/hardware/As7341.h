@@ -192,27 +192,30 @@ private:
         if (!WriteReg(REG_CFG_6, SMUX_CMD_WRITE)) return false;
         if (!SetBits(REG_ENABLE, EN_SMUXEN))      return false;
 
-        // SMUXEN auto-clears when done (~1 ms typ); allow generous timeout.
+        // SMUXEN auto-clears when done (~1 ms typ). vTaskDelay(1) = 1 tick (10 ms @ 100 Hz).
         uint8_t enable = 0;
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < 20; i++) {
+            vTaskDelay(1);
             if (!ReadReg(REG_ENABLE, enable)) return false;
             if (!(enable & EN_SMUXEN)) break;
-            vTaskDelay(pdMS_TO_TICKS(1));
         }
         if (enable & EN_SMUXEN) {
-            ESP_LOGW(TAG, "SMUX apply timeout");
+            ESP_LOGW(TAG, "SMUX apply timeout (ENABLE=0x%02x)", enable);
             return false;
         }
 
         // Start spectral measurement.
         if (!SetBits(REG_ENABLE, EN_SP_EN)) return false;
 
-        // Wait for AVALID. Integration ~50 ms; give it ~400 ms headroom.
+        // Sleep the integration time first — polling sooner is wasted work
+        // and pdMS_TO_TICKS(<10) rounds down to 0 at the default 100 Hz tick rate.
+        vTaskDelay(pdMS_TO_TICKS(60));
+
         uint8_t status = 0;
-        for (int i = 0; i < 200; i++) {
+        for (int i = 0; i < 30; i++) {
             if (!ReadReg(REG_STATUS2, status)) return false;
             if (status & STATUS2_AVALID) break;
-            vTaskDelay(pdMS_TO_TICKS(2));
+            vTaskDelay(1);
         }
         if (!(status & STATUS2_AVALID)) {
             ESP_LOGW(TAG, "AVALID timeout (STATUS2=0x%02x)", status);
