@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react"
-import { PaletteIcon, LineChartIcon, RotateCcwIcon } from "lucide-react"
+import { PaletteIcon, LineChartIcon, RotateCcwIcon, RulerIcon, TrendingUpIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useSpectrum } from "@/hooks/use-spectrum"
 import type { SpectrumReading } from "@/lib/backend"
 import {
@@ -44,27 +45,21 @@ export default function SpectrumPage() {
     <div className="mx-auto max-w-3xl space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Spectrum</h1>
-        <div className="inline-flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">Y-axis</span>
-          <div className="inline-flex rounded-lg border bg-muted/30 p-0.5">
-            <Button
-              variant={!logScale ? "secondary" : "ghost"}
-              size="sm"
-              onClick={() => setLogScale(false)}
-              aria-pressed={!logScale}
-            >
+        <Tabs
+          value={logScale ? "log" : "linear"}
+          onValueChange={(v) => setLogScale(v === "log")}
+        >
+          <TabsList>
+            <TabsTrigger value="linear">
+              <RulerIcon />
               Linear
-            </Button>
-            <Button
-              variant={logScale ? "secondary" : "ghost"}
-              size="sm"
-              onClick={() => setLogScale(true)}
-              aria-pressed={logScale}
-            >
+            </TabsTrigger>
+            <TabsTrigger value="log">
+              <TrendingUpIcon />
               Log
-            </Button>
-          </div>
-        </div>
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
       <div className="rounded-xl border bg-card p-6 text-card-foreground shadow-sm">
