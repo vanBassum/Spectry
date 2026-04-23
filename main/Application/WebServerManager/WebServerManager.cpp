@@ -116,8 +116,47 @@ void WebServerManager::RegisterRoutes()
     };
     httpd_register_uri_handler(server_, &upload_www);
 
+    // CORS preflight handlers — browsers send OPTIONS before cross-origin
+    // POST with a binary body (e.g. from the dev vite server on a different origin).
+    const httpd_uri_t upload_app_opts = {
+        .uri = "/api/upload/app",
+        .method = HTTP_OPTIONS,
+        .handler = HandleCorsPreflight,
+        .user_ctx = this,
+        .is_websocket = false,
+        .handle_ws_control_frames = false,
+        .supported_subprotocol = nullptr,
+    };
+    httpd_register_uri_handler(server_, &upload_app_opts);
+
+    const httpd_uri_t upload_www_opts = {
+        .uri = "/api/upload/www",
+        .method = HTTP_OPTIONS,
+        .handler = HandleCorsPreflight,
+        .user_ctx = this,
+        .is_websocket = false,
+        .handle_ws_control_frames = false,
+        .supported_subprotocol = nullptr,
+    };
+    httpd_register_uri_handler(server_, &upload_www_opts);
+
     wsHandler_.RegisterRoute(server_);
     staticFileHandler_.RegisterRoute(server_, BASE_PATH);
+}
+
+void WebServerManager::SetCorsHeaders(httpd_req_t* req)
+{
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin",  "*");
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Methods", "POST, OPTIONS");
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Headers", "Content-Type");
+}
+
+esp_err_t WebServerManager::HandleCorsPreflight(httpd_req_t* req)
+{
+    SetCorsHeaders(req);
+    httpd_resp_set_status(req, "204 No Content");
+    httpd_resp_send(req, nullptr, 0);
+    return ESP_OK;
 }
 
 void WebServerManager::Broadcast(const char* json, int len)
@@ -175,6 +214,7 @@ esp_err_t WebServerManager::HandleUploadApp(httpd_req_t* req)
 
     char resp[64];
     int len = snprintf(resp, sizeof(resp), "{\"ok\":true,\"size\":%d}", total);
+    SetCorsHeaders(req);
     httpd_resp_set_type(req, "application/json");
     httpd_resp_send(req, resp, len);
 
@@ -230,6 +270,7 @@ esp_err_t WebServerManager::HandleUploadWww(httpd_req_t* req)
 
     char resp[64];
     int len = snprintf(resp, sizeof(resp), "{\"ok\":true,\"size\":%d}", total);
+    SetCorsHeaders(req);
     httpd_resp_set_type(req, "application/json");
     httpd_resp_send(req, resp, len);
 
